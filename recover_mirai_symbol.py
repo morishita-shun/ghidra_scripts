@@ -9,6 +9,7 @@ from ghidra.app.decompiler import DecompileOptions, DecompInterface
 from ghidra.program.database.code import DataDB
 from ghidra.program.model.address import AddressSet
 from ghidra.program.model.block import IsolatedEntrySubModel
+from ghidra.program.model.scalar import Scalar
 from ghidra.program.model.symbol import SourceType
 from ghidra.util.task import ConsoleTaskMonitor
 
@@ -16,6 +17,10 @@ from ghidra.util.task import ConsoleTaskMonitor
 KEY_NAME = "name"
 KEY_VECTOR = "vector"
 KEY_ENTRYPOINT = "entrypoint"
+
+MNE_CALL = "CALL"
+MNE_CALLIND = "CALLIND"
+MNE_INT_XOR = "INT_XOR"
 
 ARCH_ARM_BE = "ARM:BE:32:v8"
 ARCH_ARM_LE = "ARM:LE:32:v8"
@@ -145,6 +150,191 @@ def getModeCallerFunc(callee_func):
     if len(cand_caller_funcs) >= 1:
         caller_func = collections.Counter(cand_caller_funcs).most_common(1)[0][0]
     return caller_func
+
+
+def getTableKey(listing, func_mgr):
+    table_lock_val_funcs = []
+    table_key = table_original_key_str = table_base_addr = None
+    language_id = currentProgram.getLanguageID().toString()
+    funcs = func_mgr.getFunctions(True)
+    for func in funcs:
+        instruct_mnemonics_list = []
+        first_varnodes_list = []
+        second_varnodes_list = []
+        instructs = list(listing.getInstructions(func.getBody(), True))
+        for instruct in instructs:
+            pcode = instruct.getPcode()
+            for entry in pcode:
+                if entry.getMnemonic() != MNE_INT_XOR:
+                    continue
+                # ; (unique, 0x7800, 1) INT_XOR (unique, 0x7800, 1) , (register, 0xc, 1)
+                # m68k ; (unique, 0x5800, 1) INT_XOR (register, 0x17, 1) , (unique, 0x5800, 1)
+                varnodes = entry.getInputs()
+                first_varnode = varnodes[0]
+                second_varnode = varnodes[1]
+                if first_varnode.toString() == second_varnode.toString():
+                    continue
+                first_type = parseVarnode(first_varnode)[0]
+                second_type = parseVarnode(second_varnode)[0]
+                if language_id == ARCH_M68K:
+                    if first_type != "register" and second_type == "register":
+                        continue
+                else:
+                    if first_type == "register" and second_type != "register":
+                        continue
+                instruct_mnemonics_list.append(instruct.getMnemonicString())
+                first_varnodes_list.append(first_varnode)
+                second_varnodes_list.append(second_varnode)
+                break
+        instruct_mnemonics_set = set(instruct_mnemonics_list)
+        first_varnodes_set = set(first_varnodes_list)
+        second_varnodes_set = set(second_varnodes_list)
+        if (len(instruct_mnemonics_set) == 1
+                and len(second_varnodes_list) == 4
+                and len(second_varnodes_set) == 1):
+            # in most cases, second_varnode is same
+            pass
+        elif (len(instruct_mnemonics_set) == 1
+                and len(second_varnodes_list) == 4
+                and len(first_varnodes_set) == 1):
+            # x86_64 uses same first_varnode
+            pass
+        elif (len(instruct_mnemonics_set) == 1
+                and len(second_varnodes_list) == 4
+                and len(second_varnodes_set) == 2):
+            # sometimes mips uses two different registers
+            pass
+        else:
+            continue
+        # check table_key
+        target_func_flag = False
+        data_addrs = []
+        for instruct in instructs:
+            try:
+                refs = getReferencesFrom(instruct.getAddress())
+                if len(refs) == 0:
+                    continue
+                for ref in refs:
+                    data_addr = ref.getToAddress()
+                    if not data_addr.isMemoryAddress():
+                        continue
+                    data_addrs.append(data_addr)
+                    bytes = getDataAt(data_addr).getValue()
+                    if not isinstance(bytes, Scalar):
+                        continue
+                    if bytes.bitLength() != 32:
+                        continue
+                    # original table_key is 4 bytes (32 bits)
+                    target_func_flag = True
+                    table_original_key_str = format(bytes.getUnsignedValue(), "#010x")
+                    table_key = int(table_original_key_str[2:4], 16) ^ \
+                            int(table_original_key_str[4:6], 16) ^ \
+                            int(table_original_key_str[6:8], 16) ^ \
+                            int(table_original_key_str[8:10], 16)
+                    table_lock_val_funcs.append(func)
+            except:
+                continue
+        if target_func_flag:
+            # mode data_addrs is table_base_addr
+            table_base_addr = collections.Counter(data_addrs).most_common(1)[0][0]
+    return table_lock_val_funcs, table_key, table_original_key_str, table_base_addr
+
+
+def getTableInitFunc(listing, ifc, monitor, func_mgr, table_key, xor_string_count_threshold=3):
+    def _getCandUtilMemcpyFuncs(cand_caller_func):
+        res = ifc.decompileFunction(cand_caller_func, 60, monitor)
+        if not res:
+            return None
+        high_func = res.getHighFunction()
+        pcodes = high_func.getPcodeOps()
+        # get target_funcs: malloc() or util_memcpy()
+        cand_util_memcpy_funcs = []
+        for pcode in pcodes:
+            if pcode.getMnemonic() not in (MNE_CALL, MNE_CALLIND):
+                continue
+            instruct_addr = pcode.getSeqnum().getTarget()
+            ref = getReferencesFrom(instruct_addr)
+            if len(ref) == 0:
+                continue
+            ref_func = getFunctionAt(ref[0].getToAddress())
+            if ref_func:
+                cand_util_memcpy_funcs.append(ref_func)
+        return cand_util_memcpy_funcs
+    table_init_func = util_memcpy_func = add_entry_func = None
+    funcs = func_mgr.getFunctions(True)
+    for func in funcs:
+        cand_table_init_func = cand_add_entry_func = None
+        # check func has xor strings (default threshold is 3)
+        xor_string_count = 0
+        for instruct in listing.getInstructions(func.getBody(), True):
+            refs = getReferencesFrom(instruct.getAddress())
+            if len(refs) == 0:
+                continue
+            for ref in refs:
+                data_addr = ref.getToAddress()
+                data_symbol = getSymbolAt(data_addr)
+                try:
+                    # check DAT_*/s_* address
+                    if not data_symbol.toString().startswith(("DAT_", "s_")):
+                        continue
+                    bytes = []
+                    # max size (1024) of bytes
+                    for count in range(1024):
+                        byte = getUByte(data_addr.add(count))
+                        # null
+                        if byte == 0:
+                            break
+                        else:
+                            bytes.append(byte)
+                    # last byte of xor string is table_key
+                    if len(bytes) >= 2 and bytes[-1] == table_key:
+                        xor_string_count += 1
+                except:
+                    continue
+            if xor_string_count >= xor_string_count_threshold:
+                cand_table_init_func = func
+                break
+        if cand_table_init_func:
+            cand_util_memcpy_funcs = _getCandUtilMemcpyFuncs(cand_table_init_func)
+            if len(set(cand_util_memcpy_funcs)) == 2:
+                pass
+            elif len(set(cand_util_memcpy_funcs)) == 1:
+                # maybe this is add_entry_func (this malware is not using optimization level -O3)
+                cand_add_entry_func = cand_util_memcpy_funcs[0]
+                cand_util_memcpy_funcs = _getCandUtilMemcpyFuncs(cand_add_entry_func)
+                if len(set(cand_util_memcpy_funcs)) == 2:
+                    pass
+                else:
+                    continue
+            else:
+                continue
+            # get mode function
+            cand_util_memcpy_func1 = collections.Counter(cand_util_memcpy_funcs).most_common(2)[0][0]
+            cand_func1_instructs = list(listing.getInstructions(cand_util_memcpy_func1.getBody(), True))
+            # get second mode function
+            cand_util_memcpy_func2 = collections.Counter(cand_util_memcpy_funcs).most_common(2)[1][0]
+            cand_func2_instructs = list(listing.getInstructions(cand_util_memcpy_func2.getBody(), True))
+            # minimum function is util_memcpy()
+            if len(cand_func1_instructs) > len(cand_func2_instructs):
+                util_memcpy_func = cand_util_memcpy_func2
+            else:
+                util_memcpy_func = cand_util_memcpy_func1
+            table_init_func = cand_table_init_func
+            add_entry_func = cand_add_entry_func
+            break
+    return table_init_func, util_memcpy_func, add_entry_func
+
+
+def getTableRetrieveValFunc(table_lock_val_funcs, table_base_addr):
+    table_retrieve_val_func = None
+    refs = getReferencesTo(table_base_addr)
+    for ref in refs:
+        cand_table_retrieve_val_func = getFunctionContaining(ref.getFromAddress())
+        # exclude None from cand_table_retrieve_val_func
+        if cand_table_retrieve_val_func and cand_table_retrieve_val_func not in table_lock_val_funcs:
+            table_retrieve_val_func = cand_table_retrieve_val_func
+            break
+    return table_retrieve_val_func
 
 
 def getMainFunc(func_mgr, ifc, monitor):
@@ -392,6 +582,10 @@ def getDecompileCCode(func, ifc, monitor):
     return ccode
 
 
+def parseVarnode(varnode):
+    return varnode.toString().strip("()").split(", ")
+
+
 def setFunctionName(func, name):
     if not func:
         return None
@@ -416,11 +610,24 @@ if __name__ == "__main__":
     monitor = ConsoleTaskMonitor()
     defUndefinedFuncs(listing, monitor)
     add_auth_entry_func = scanner_init_func = scanner_key = auth_tables = None
+    table_lock_val_funcs = table_init_func = util_memcpy_func = None
+    add_entry_func = table_retrieve_val_func = table_key = None
+    table_original_key_str = table_base_addr = tables = None
     main_func = main_ccode = close_func = None
     resolve_cnc_addr_func = cnc = attack_init_func = attacks = None
     add_auth_entry_func, scanner_key = getScannerKey(func_mgr, ifc, monitor)
     if add_auth_entry_func and scanner_key:
         scanner_init_func = getModeCallerFunc(add_auth_entry_func)
+    table_lock_val_funcs, table_key, table_original_key_str, table_base_addr = getTableKey(
+            listing, func_mgr
+            )
+    if table_lock_val_funcs and table_key and table_original_key_str and table_base_addr:
+        table_init_func, util_memcpy_func, add_entry_func = getTableInitFunc(
+                listing, ifc, monitor, func_mgr, table_key
+                )
+        table_retrieve_val_func = getTableRetrieveValFunc(
+                table_lock_val_funcs, table_base_addr
+                )
     main_func, main_ccode = getMainFunc(func_mgr, ifc, monitor)
     if main_func and main_ccode:
         close_func = getCloseFunc(main_ccode)
@@ -433,6 +640,10 @@ if __name__ == "__main__":
     print("")
     setFunctionName(add_auth_entry_func, "add_auth_entry")
     setFunctionName(scanner_init_func, "scanner_init")
+    for index, table_lock_val_func in enumerate(table_lock_val_funcs):
+        setFunctionName(table_lock_val_func, "table_lock_val" + str(index+1))
+    setFunctionName(table_init_func, "table_init")
+    setFunctionName(table_retrieve_val_func, "table_retrieve_val")
     setFunctionName(main_func, "main")
     setFunctionName(close_func, "close")
     setFunctionName(resolve_cnc_addr_func, "resolve_cnc_addr")
