@@ -370,6 +370,15 @@ def getCloseFunc(main_ccode):
     return close_func
 
 
+def getWriteFunc(main_ccode):
+    write_func = None
+    match = re.search(r";(.+?)\(1,.+?,.+?\);(.+?)\(1,.+?,1\);", main_ccode.toString())
+    if not match:
+        return None
+    write_func = getGlobalFunctions(match.group(2))[0]
+    return write_func
+
+
 def getResolveCncAddrFunc(listing, func_mgr, ifc, monitor, main_func, main_ccode):
     resolve_cnc_addr_func = cnc = None
     language_id = currentProgram.getLanguageID().toString()
@@ -613,7 +622,8 @@ if __name__ == "__main__":
     table_lock_val_funcs = table_init_func = util_memcpy_func = None
     add_entry_func = table_retrieve_val_func = table_key = None
     table_original_key_str = table_base_addr = tables = None
-    main_func = main_ccode = close_func = None
+    main_func = main_ccode = None
+    close_func = write_func = None
     resolve_cnc_addr_func = cnc = attack_init_func = attacks = None
     add_auth_entry_func, scanner_key = getScannerKey(func_mgr, ifc, monitor)
     if add_auth_entry_func and scanner_key:
@@ -631,6 +641,7 @@ if __name__ == "__main__":
     main_func, main_ccode = getMainFunc(func_mgr, ifc, monitor)
     if main_func and main_ccode:
         close_func = getCloseFunc(main_ccode)
+        write_func = getWriteFunc(main_ccode)
         resolve_cnc_addr_func, cnc = getResolveCncAddrFunc(listing, func_mgr, ifc, monitor, main_func, main_ccode)
         attack_init_func = getAttackInitFunc(func_mgr, ifc, monitor, main_func)
         if attack_init_func:
@@ -648,6 +659,7 @@ if __name__ == "__main__":
     setFunctionName(table_retrieve_val_func, "table_retrieve_val")
     setFunctionName(main_func, "main")
     setFunctionName(close_func, "close")
+    setFunctionName(write_func, "write")
     setFunctionName(resolve_cnc_addr_func, "resolve_cnc_addr")
     setFunctionName(attack_init_func, "attack_init")
     for attack in attacks:
