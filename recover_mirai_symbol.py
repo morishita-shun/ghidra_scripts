@@ -643,6 +643,8 @@ if __name__ == "__main__":
     for index, table_lock_val_func in enumerate(table_lock_val_funcs):
         setFunctionName(table_lock_val_func, "table_lock_val" + str(index+1))
     setFunctionName(table_init_func, "table_init")
+    setFunctionName(util_memcpy_func, "util_memcpy")
+    setFunctionName(add_entry_func, "add_entry")
     setFunctionName(table_retrieve_val_func, "table_retrieve_val")
     setFunctionName(main_func, "main")
     setFunctionName(close_func, "close")
