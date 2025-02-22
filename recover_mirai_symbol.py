@@ -363,7 +363,7 @@ def getMainFunc(func_mgr, ifc, monitor):
 
 def getCloseFunc(main_ccode):
     close_func = None
-    match = re.search(r";(.+?)\(0\);(.+?)\(1\);(.+?)\(2\);", main_ccode.toString())
+    match = re.search(r";(FUN_.+?)\(0\);(FUN_.+?)\(1\);(FUN_.+?)\(2\);", main_ccode.toString())
     if not match:
         return None
     close_func = getGlobalFunctions(match.group(2))[0]
@@ -372,7 +372,7 @@ def getCloseFunc(main_ccode):
 
 def getWriteFunc(main_ccode):
     write_func = None
-    match = re.search(r";(.+?)\(1,.+?,.+?\);(.+?)\(1,.+?,1\);", main_ccode.toString())
+    match = re.search(r";(FUN_.+?)\(1,.+?,.+?\);(FUN_.+?)\(1,.+?,1\);", main_ccode.toString())
     if not match:
         return None
     write_func = getGlobalFunctions(match.group(2))[0]
@@ -382,10 +382,10 @@ def getWriteFunc(main_ccode):
 def getIoctlFunc(main_ccode):
     ioctl_func = None
     # this regex doesnt work correctly due to middle of "*"
-    match = re.search(r";(.+?)\(.+?,0x80045704,.+?\);", main_ccode.toString())
+    match = re.search(r";(FUN_.+?)\(.+?,0x80045704,.+?\);", main_ccode.toString())
     if not match:
         return None
-    match = re.search(r"(.+?)\(.+?,0x80045704,.+?\)", match.group(0).split(";")[-2])
+    match = re.search(r"(FUN_.+?)\(.+?,0x80045704,.+?\)", match.group(0).split(";")[-2])
     if not match:
         return None
     ioctl_func = getGlobalFunctions(match.group(1))[0]
@@ -394,7 +394,7 @@ def getIoctlFunc(main_ccode):
 
 def getOpenFunc(main_ccode):
     open_func = None
-    match = re.search(r";.+? = (.+?)\(\"/dev/watchdog\",2\);", main_ccode.toString())
+    match = re.search(r";.+? = (FUN_.+?)\(\"/dev/watchdog\",2\);", main_ccode.toString())
     if not match:
         return None
     open_func = getGlobalFunctions(match.group(1))[0]
