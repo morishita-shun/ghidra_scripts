@@ -419,7 +419,7 @@ def getSocketFunc(main_ccode):
 def getRecvFunc(main_ccode):
     recv_func = None
     # this regex doesnt work correctly due to middle of "*"
-    # ; 0x4002: MSG_NOSIGNAL | MSG_PEEK
+    # ; recv(fd_serv, rdbuf, len, MSG_NOSIGNAL | MSG_PEEK);
     match = re.search(r"(FUN_.+?)\(.+?,.+?,.+?,0x4002\);", main_ccode.toString())
     if not match:
         return None
@@ -428,6 +428,20 @@ def getRecvFunc(main_ccode):
         return None
     recv_func = getGlobalFunctions(match.group(1))[0]
     return recv_func
+
+
+def getSendFunc(main_ccode):
+    send_func = None
+    # this regex doesnt work correctly due to middle of "*"
+    # ; send(fd_serv, id_buf, id_len, MSG_NOSIGNAL);
+    match = re.search(r"(FUN_.+?)\(.+?,.+?,1,0x4000\);", main_ccode.toString())
+    if not match:
+        return None
+    match = re.search(r"(FUN_.+?)\(.+?,.+?,1,0x4000\)", match.group(0).split(";")[-2])
+    if not match:
+        return None
+    send_func = getGlobalFunctions(match.group(1))[0]
+    return send_func
 
 
 def getResolveCncAddrFunc(listing, func_mgr, ifc, monitor, main_func, main_ccode):
@@ -676,7 +690,7 @@ if __name__ == "__main__":
     table_original_key_str = table_base_addr = tables = None
     main_func = main_ccode = None
     close_func = write_func = ioctl_func = open_func = socket_func = None
-    recv_func = None
+    recv_func = send_func = None
     resolve_cnc_addr_func = cnc = attack_init_func = attacks = None
     add_auth_entry_func, scanner_key = getScannerKey(func_mgr, ifc, monitor)
     if add_auth_entry_func and scanner_key:
@@ -699,6 +713,7 @@ if __name__ == "__main__":
         open_func = getOpenFunc(main_ccode)
         socket_func = getSocketFunc(main_ccode)
         recv_func = getRecvFunc(main_ccode)
+        send_func = getSendFunc(main_ccode)
         resolve_cnc_addr_func, cnc = getResolveCncAddrFunc(listing, func_mgr, ifc, monitor, main_func, main_ccode)
         attack_init_func = getAttackInitFunc(func_mgr, ifc, monitor, main_func)
         if attack_init_func:
@@ -726,6 +741,7 @@ if __name__ == "__main__":
     setFunctionName(open_func, "open")
     setFunctionName(socket_func, "socket")
     setFunctionName(recv_func, "recv")
+    setFunctionName(send_func, "send")
     print("done")
     print("")
     print("")
