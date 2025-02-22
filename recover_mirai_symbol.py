@@ -67,6 +67,86 @@ def defUndefinedFuncs(listing, monitor):
     return None
 
 
+def getScannerKey(func_mgr, ifc, monitor):
+    add_auth_entry_func = deobf_func = scanner_key = None
+    funcs = func_mgr.getFunctions(True)
+    for func in funcs:
+        ccode = getDecompileCCode(func, ifc, monitor)
+        if not ccode:
+            continue
+        roop_strs = re.findall(r"do \{.+?\} while", ccode.toString())
+        if len(roop_strs) == 0:
+            # sparc uses while(true) statement
+            roop_strs = re.findall(r"while\( true \) \{.+?\}", ccode.toString())
+        # add_auth_entry_func has two while statements
+        if len(roop_strs) == 2:
+            keys = []
+            for roop_str in roop_strs:
+                # ; *(byte *)(iVar4 + (int)pvVar3) = *(byte *)(iVar4 + (int)pvVar3) ^ 0xb4;
+                match = re.search(r".+? = .+? \^ ([0-9a-fA-F|x]+);", roop_str)
+                if not match:
+                    continue
+                key = int(match.group(1), 0)
+                # check 1 byte key
+                if 0 <= key <= 255:
+                    keys.append(key)
+            if len(keys) == 2:
+                if None not in keys and keys[0] == keys[1]:
+                    add_auth_entry_func = func
+                    scanner_key = keys[0]
+                    break
+        else:
+            # maybe this is deobf_func (this malware is not using optimization level -O3)
+            # ; while ((int)lVar2 < *param_2) {
+            roop_strs = re.findall(r"while \(.+? \< .+?\) \{.+?\}", ccode.toString())
+            if len(roop_strs) == 0:
+                # get for statement
+                # ; for (iVar1 = 0; iVar1 < *param_2; iVar1 = iVar1 + 1) {
+                roop_strs = re.findall(r"for \(.+?; .+?; .+?\) \{.+?\}", ccode.toString())
+            if len(roop_strs) != 1:
+                continue
+            # handle more than one xor statement
+            # ; *(byte *)(lVar3 + lVar2) = *(byte *)(lVar3 + lVar2) ^ 3;
+            xor_strs = re.findall(r".+? = .+? \^ [0-9a-fA-F|x]+;", roop_strs[0])
+            if len(xor_strs) == 0:
+                continue
+            for xor_str in xor_strs:
+                match = re.search(r".+? = .+? \^ ([0-9a-fA-F|x]+);", xor_str)
+                if not match:
+                    continue
+                key = int(match.group(1), 0)
+                # check 1 byte key
+                if 0 <= key <= 255:
+                    if not scanner_key:
+                        scanner_key = key
+                    else:
+                        scanner_key ^= key
+            if scanner_key:
+                deobf_func = func
+                add_auth_entry_func = getModeCallerFunc(deobf_func)
+    return add_auth_entry_func, scanner_key
+
+
+def getModeCallerFunc(callee_func):
+    caller_func = None
+    language_id = currentProgram.getLanguageID().toString()
+    entry_point = callee_func.getEntryPoint()
+    refs = getReferencesTo(entry_point)
+    cand_caller_funcs = []
+    for ref in refs:
+        cand_caller_func = None
+        # in some cases (sh4), getFunctionContaining cannot identify function correctly
+        if language_id == ARCH_SH4:
+            cand_caller_func = getFunctionBefore(ref.getFromAddress())
+        else:
+            cand_caller_func = getFunctionContaining(ref.getFromAddress())
+        cand_caller_funcs.append(cand_caller_func)
+    # use mode function for caller_func
+    if len(cand_caller_funcs) >= 1:
+        caller_func = collections.Counter(cand_caller_funcs).most_common(1)[0][0]
+    return caller_func
+
+
 def getMainFunc(func_mgr, ifc, monitor):
     main_func = main_ccode = None
     funcs = func_mgr.getFunctions(True)
@@ -326,8 +406,12 @@ if __name__ == "__main__":
     _ = ifc.openProgram(currentProgram)
     monitor = ConsoleTaskMonitor()
     defUndefinedFuncs(listing, monitor)
+    add_auth_entry_func = scanner_init_func = scanner_key = auth_tables = None
     main_func = main_ccode = None
     resolve_cnc_addr_func = cnc = attack_init_func = attacks = None
+    add_auth_entry_func, scanner_key = getScannerKey(func_mgr, ifc, monitor)
+    if add_auth_entry_func and scanner_key:
+        scanner_init_func = getModeCallerFunc(add_auth_entry_func)
     main_func, main_ccode = getMainFunc(func_mgr, ifc, monitor)
     if main_func and main_ccode:
         resolve_cnc_addr_func, cnc = getResolveCncAddrFunc(listing, func_mgr, ifc, monitor, main_func, main_ccode)
@@ -337,6 +421,8 @@ if __name__ == "__main__":
     # recover function name
     print("")
     print("")
+    setFunctionName(add_auth_entry_func, "add_auth_entry")
+    setFunctionName(scanner_init_func, "scanner_init")
     setFunctionName(main_func, "main")
     setFunctionName(resolve_cnc_addr_func, "resolve_cnc_addr")
     setFunctionName(attack_init_func, "attack_init")
