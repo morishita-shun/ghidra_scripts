@@ -21,7 +21,7 @@ for addr in addrs:
     data_type = data.getDataType()
     #if isinstance(data_type, DefaultDataType):
     if isinstance(data_type, StringDataType):
-        print("Skip: " + str(symbol))
+        print("Pass: " + str(symbol))
     else:
         data = listing.createData(addr, StringDataType())
         print("Set: " + str(symbol))
