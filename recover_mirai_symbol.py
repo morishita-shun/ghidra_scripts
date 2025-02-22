@@ -372,6 +372,7 @@ def getCloseFunc(main_ccode):
 
 def getWriteFunc(main_ccode):
     write_func = None
+    # ; write(STDOUT, "\n", 1);
     match = re.search(r";(FUN_.+?)\(1,.+?,.+?\);(FUN_.+?)\(1,.+?,1\);", main_ccode.toString())
     if not match:
         return None
@@ -404,6 +405,7 @@ def getOpenFunc(main_ccode):
 def getSocketFunc(main_ccode):
     socket_func = None
     # this regex doesnt work correctly due to middle of "*"
+    # ; socket(AF_INET, SOCK_STREAM, 0)
     match = re.search(r"(FUN_.+?)\(2,1,0\)", main_ccode.toString())
     if not match:
         return None
@@ -412,6 +414,20 @@ def getSocketFunc(main_ccode):
         return None
     socket_func = getGlobalFunctions(match.group(1))[0]
     return socket_func
+
+
+def getRecvFunc(main_ccode):
+    recv_func = None
+    # this regex doesnt work correctly due to middle of "*"
+    # ; 0x4002: MSG_NOSIGNAL | MSG_PEEK
+    match = re.search(r"(FUN_.+?)\(.+?,.+?,.+?,0x4002\);", main_ccode.toString())
+    if not match:
+        return None
+    match = re.search(r"(FUN_.+?)\(.+?,.+?,.+?,0x4002\)", match.group(0).split(";")[-2])
+    if not match:
+        return None
+    recv_func = getGlobalFunctions(match.group(1))[0]
+    return recv_func
 
 
 def getResolveCncAddrFunc(listing, func_mgr, ifc, monitor, main_func, main_ccode):
@@ -660,6 +676,7 @@ if __name__ == "__main__":
     table_original_key_str = table_base_addr = tables = None
     main_func = main_ccode = None
     close_func = write_func = ioctl_func = open_func = socket_func = None
+    recv_func = None
     resolve_cnc_addr_func = cnc = attack_init_func = attacks = None
     add_auth_entry_func, scanner_key = getScannerKey(func_mgr, ifc, monitor)
     if add_auth_entry_func and scanner_key:
@@ -681,6 +698,7 @@ if __name__ == "__main__":
         ioctl_func = getIoctlFunc(main_ccode)
         open_func = getOpenFunc(main_ccode)
         socket_func = getSocketFunc(main_ccode)
+        recv_func = getRecvFunc(main_ccode)
         resolve_cnc_addr_func, cnc = getResolveCncAddrFunc(listing, func_mgr, ifc, monitor, main_func, main_ccode)
         attack_init_func = getAttackInitFunc(func_mgr, ifc, monitor, main_func)
         if attack_init_func:
@@ -707,6 +725,7 @@ if __name__ == "__main__":
     setFunctionName(ioctl_func, "ioctl")
     setFunctionName(open_func, "open")
     setFunctionName(socket_func, "socket")
+    setFunctionName(recv_func, "recv")
     print("done")
     print("")
     print("")
