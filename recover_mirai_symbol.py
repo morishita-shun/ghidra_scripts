@@ -171,6 +171,15 @@ def getMainFunc(func_mgr, ifc, monitor):
     return main_func, main_ccode
 
 
+def getCloseFunc(main_ccode):
+    close_func = None
+    match = re.search(r";(.+?)\(0\);(.+?)\(1\);(.+?)\(2\);", main_ccode.toString())
+    if not match:
+        return None
+    close_func = getGlobalFunctions(match.group(2))[0]
+    return close_func
+
+
 def getResolveCncAddrFunc(listing, func_mgr, ifc, monitor, main_func, main_ccode):
     resolve_cnc_addr_func = cnc = None
     language_id = currentProgram.getLanguageID().toString()
@@ -407,13 +416,14 @@ if __name__ == "__main__":
     monitor = ConsoleTaskMonitor()
     defUndefinedFuncs(listing, monitor)
     add_auth_entry_func = scanner_init_func = scanner_key = auth_tables = None
-    main_func = main_ccode = None
+    main_func = main_ccode = close_func = None
     resolve_cnc_addr_func = cnc = attack_init_func = attacks = None
     add_auth_entry_func, scanner_key = getScannerKey(func_mgr, ifc, monitor)
     if add_auth_entry_func and scanner_key:
         scanner_init_func = getModeCallerFunc(add_auth_entry_func)
     main_func, main_ccode = getMainFunc(func_mgr, ifc, monitor)
     if main_func and main_ccode:
+        close_func = getCloseFunc(main_ccode)
         resolve_cnc_addr_func, cnc = getResolveCncAddrFunc(listing, func_mgr, ifc, monitor, main_func, main_ccode)
         attack_init_func = getAttackInitFunc(func_mgr, ifc, monitor, main_func)
         if attack_init_func:
@@ -424,6 +434,7 @@ if __name__ == "__main__":
     setFunctionName(add_auth_entry_func, "add_auth_entry")
     setFunctionName(scanner_init_func, "scanner_init")
     setFunctionName(main_func, "main")
+    setFunctionName(close_func, "close")
     setFunctionName(resolve_cnc_addr_func, "resolve_cnc_addr")
     setFunctionName(attack_init_func, "attack_init")
     for attack in attacks:
