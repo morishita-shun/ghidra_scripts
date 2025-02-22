@@ -394,14 +394,14 @@ def getDecompileCCode(func, ifc, monitor):
 
 def setFunctionName(func, name):
     if not func:
-        return
+        return None
     original_func_name = func.getName()
     if not original_func_name.startswith("FUN_"):
-        return
+        return None
     func_name = name + "_" + func.getEntryPoint().toString()
     func.setName(func_name, SourceType.USER_DEFINED)
     print("recover: " + original_func_name + " -> " + func_name)
-    return
+    return None
 
 
 if __name__ == "__main__":
