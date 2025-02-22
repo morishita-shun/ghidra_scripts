@@ -623,7 +623,8 @@ def setFunctionName(func, name):
     original_func_name = func.getName()
     if not original_func_name.startswith("FUN_"):
         return None
-    func_name = name + "_" + func.getEntryPoint().toString()
+    #func_name = name + "_" + func.getEntryPoint().toString()
+    func_name = name
     func.setName(func_name, SourceType.USER_DEFINED)
     print("recover: " + original_func_name + " -> " + func_name)
     return None
