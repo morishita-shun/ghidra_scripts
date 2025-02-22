@@ -379,6 +379,28 @@ def getWriteFunc(main_ccode):
     return write_func
 
 
+def getIoctlFunc(main_ccode):
+    ioctl_func = None
+    # this regex doesnt work correctly due to middle of "*"
+    match = re.search(r";(.+?)\(.+?,0x80045704,.+?\);", main_ccode.toString())
+    if not match:
+        return None
+    match = re.search(r"(.+?)\(.+?,0x80045704,.+?\)", match.group(0).split(";")[-2])
+    if not match:
+        return None
+    ioctl_func = getGlobalFunctions(match.group(1))[0]
+    return ioctl_func
+
+
+def getOpenFunc(main_ccode):
+    open_func = None
+    match = re.search(r";.+? = (.+?)\(\"/dev/watchdog\",2\);", main_ccode.toString())
+    if not match:
+        return None
+    open_func = getGlobalFunctions(match.group(1))[0]
+    return open_func
+
+
 def getResolveCncAddrFunc(listing, func_mgr, ifc, monitor, main_func, main_ccode):
     resolve_cnc_addr_func = cnc = None
     language_id = currentProgram.getLanguageID().toString()
@@ -623,7 +645,7 @@ if __name__ == "__main__":
     add_entry_func = table_retrieve_val_func = table_key = None
     table_original_key_str = table_base_addr = tables = None
     main_func = main_ccode = None
-    close_func = write_func = None
+    close_func = write_func = ioctl_func = open_func = None
     resolve_cnc_addr_func = cnc = attack_init_func = attacks = None
     add_auth_entry_func, scanner_key = getScannerKey(func_mgr, ifc, monitor)
     if add_auth_entry_func and scanner_key:
@@ -642,6 +664,8 @@ if __name__ == "__main__":
     if main_func and main_ccode:
         close_func = getCloseFunc(main_ccode)
         write_func = getWriteFunc(main_ccode)
+        ioctl_func = getIoctlFunc(main_ccode)
+        open_func = getOpenFunc(main_ccode)
         resolve_cnc_addr_func, cnc = getResolveCncAddrFunc(listing, func_mgr, ifc, monitor, main_func, main_ccode)
         attack_init_func = getAttackInitFunc(func_mgr, ifc, monitor, main_func)
         if attack_init_func:
@@ -658,13 +682,15 @@ if __name__ == "__main__":
     setFunctionName(add_entry_func, "add_entry")
     setFunctionName(table_retrieve_val_func, "table_retrieve_val")
     setFunctionName(main_func, "main")
-    setFunctionName(close_func, "close")
-    setFunctionName(write_func, "write")
     setFunctionName(resolve_cnc_addr_func, "resolve_cnc_addr")
     setFunctionName(attack_init_func, "attack_init")
     for attack in attacks:
         attack_func = getFunctionAt(toAddr(attack[KEY_ENTRYPOINT]))
         setFunctionName(attack_func, "attack_vector" + str(attack[KEY_VECTOR]))
+    setFunctionName(close_func, "close")
+    setFunctionName(write_func, "write")
+    setFunctionName(ioctl_func, "ioctl")
+    setFunctionName(open_func, "open")
     print("done")
     print("")
     print("")
