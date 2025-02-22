@@ -642,6 +642,27 @@ def getSendFunc(main_ccode):
     return send_func
 
 
+def getKillExitFunc(main_ccode):
+    kill_func = exit_func = None
+    # this regex doesnt work correctly due to middle of "*"
+    # ; kill(pgid * -1, 9); exit(0);
+    match = re.search(r";(FUN_.+?)\(.+?,9\);(FUN_.+?)\(0\);", main_ccode.toString())
+    if not match:
+        return None, None
+    lines = match.group(0).split(";")
+    match = re.search(r"(FUN_.+?)\(.+?,9\)", lines[-3])
+    if not match:
+        kill_func = None
+    else:
+        kill_func = getGlobalFunctions(match.group(1))[0]
+    match = re.search(r"(FUN_.+?)\(0\)", lines[-2])
+    if not match:
+        exit_func = None
+    else:
+        exit_func = getGlobalFunctions(match.group(1))[0]
+    return kill_func, exit_func
+
+
 def getUByte(addr):
     return getByte(addr) & 0xFF
 
@@ -690,7 +711,7 @@ if __name__ == "__main__":
     table_original_key_str = table_base_addr = tables = None
     main_func = main_ccode = None
     close_func = write_func = ioctl_func = open_func = socket_func = None
-    recv_func = send_func = None
+    recv_func = send_func = kill_func = exit_func = None
     resolve_cnc_addr_func = cnc = attack_init_func = attacks = None
     add_auth_entry_func, scanner_key = getScannerKey(func_mgr, ifc, monitor)
     if add_auth_entry_func and scanner_key:
@@ -714,6 +735,7 @@ if __name__ == "__main__":
         socket_func = getSocketFunc(main_ccode)
         recv_func = getRecvFunc(main_ccode)
         send_func = getSendFunc(main_ccode)
+        kill_func, exit_func = getKillExitFunc(main_ccode)
         resolve_cnc_addr_func, cnc = getResolveCncAddrFunc(listing, func_mgr, ifc, monitor, main_func, main_ccode)
         attack_init_func = getAttackInitFunc(func_mgr, ifc, monitor, main_func)
         if attack_init_func:
@@ -742,6 +764,8 @@ if __name__ == "__main__":
     setFunctionName(socket_func, "socket")
     setFunctionName(recv_func, "recv")
     setFunctionName(send_func, "send")
+    setFunctionName(kill_func, "kill")
+    setFunctionName(exit_func, "exit")
     print("done")
     print("")
     print("")
