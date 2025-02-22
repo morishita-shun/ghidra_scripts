@@ -361,89 +361,6 @@ def getMainFunc(func_mgr, ifc, monitor):
     return main_func, main_ccode
 
 
-def getCloseFunc(main_ccode):
-    close_func = None
-    match = re.search(r";(FUN_.+?)\(0\);(FUN_.+?)\(1\);(FUN_.+?)\(2\);", main_ccode.toString())
-    if not match:
-        return None
-    close_func = getGlobalFunctions(match.group(2))[0]
-    return close_func
-
-
-def getWriteFunc(main_ccode):
-    write_func = None
-    # ; write(STDOUT, "\n", 1);
-    match = re.search(r";(FUN_.+?)\(1,.+?,.+?\);(FUN_.+?)\(1,.+?,1\);", main_ccode.toString())
-    if not match:
-        return None
-    write_func = getGlobalFunctions(match.group(2))[0]
-    return write_func
-
-
-def getIoctlFunc(main_ccode):
-    ioctl_func = None
-    # this regex doesnt work correctly due to middle of "*"
-    match = re.search(r";(FUN_.+?)\(.+?,0x80045704,.+?\);", main_ccode.toString())
-    if not match:
-        return None
-    match = re.search(r"(FUN_.+?)\(.+?,0x80045704,.+?\)", match.group(0).split(";")[-2])
-    if not match:
-        return None
-    ioctl_func = getGlobalFunctions(match.group(1))[0]
-    return ioctl_func
-
-
-def getOpenFunc(main_ccode):
-    open_func = None
-    match = re.search(r";.+? = (FUN_.+?)\(\"/dev/watchdog\",2\);", main_ccode.toString())
-    if not match:
-        return None
-    open_func = getGlobalFunctions(match.group(1))[0]
-    return open_func
-
-
-def getSocketFunc(main_ccode):
-    socket_func = None
-    # this regex doesnt work correctly due to middle of "*"
-    # ; socket(AF_INET, SOCK_STREAM, 0)
-    match = re.search(r"(FUN_.+?)\(2,1,0\)", main_ccode.toString())
-    if not match:
-        return None
-    match = re.search(r"(FUN_.+?)\(2,1,0\)", match.group(0).split(" ")[-1])
-    if not match:
-        return None
-    socket_func = getGlobalFunctions(match.group(1))[0]
-    return socket_func
-
-
-def getRecvFunc(main_ccode):
-    recv_func = None
-    # this regex doesnt work correctly due to middle of "*"
-    # ; recv(fd_serv, rdbuf, len, MSG_NOSIGNAL | MSG_PEEK);
-    match = re.search(r"(FUN_.+?)\(.+?,.+?,.+?,0x4002\);", main_ccode.toString())
-    if not match:
-        return None
-    match = re.search(r"(FUN_.+?)\(.+?,.+?,.+?,0x4002\)", match.group(0).split(";")[-2])
-    if not match:
-        return None
-    recv_func = getGlobalFunctions(match.group(1))[0]
-    return recv_func
-
-
-def getSendFunc(main_ccode):
-    send_func = None
-    # this regex doesnt work correctly due to middle of "*"
-    # ; send(fd_serv, id_buf, id_len, MSG_NOSIGNAL);
-    match = re.search(r"(FUN_.+?)\(.+?,.+?,1,0x4000\);", main_ccode.toString())
-    if not match:
-        return None
-    match = re.search(r"(FUN_.+?)\(.+?,.+?,1,0x4000\)", match.group(0).split(";")[-2])
-    if not match:
-        return None
-    send_func = getGlobalFunctions(match.group(1))[0]
-    return send_func
-
-
 def getResolveCncAddrFunc(listing, func_mgr, ifc, monitor, main_func, main_ccode):
     resolve_cnc_addr_func = cnc = None
     language_id = currentProgram.getLanguageID().toString()
@@ -640,6 +557,89 @@ def getAttacks(func_mgr, ifc, monitor, attack_init_func):
                 attacks.append(attack)
                 vector = func_name = None
     return attacks
+
+
+def getCloseFunc(main_ccode):
+    close_func = None
+    match = re.search(r";(FUN_.+?)\(0\);(FUN_.+?)\(1\);(FUN_.+?)\(2\);", main_ccode.toString())
+    if not match:
+        return None
+    close_func = getGlobalFunctions(match.group(2))[0]
+    return close_func
+
+
+def getWriteFunc(main_ccode):
+    write_func = None
+    # ; write(STDOUT, "\n", 1);
+    match = re.search(r";(FUN_.+?)\(1,.+?,.+?\);(FUN_.+?)\(1,.+?,1\);", main_ccode.toString())
+    if not match:
+        return None
+    write_func = getGlobalFunctions(match.group(2))[0]
+    return write_func
+
+
+def getIoctlFunc(main_ccode):
+    ioctl_func = None
+    # this regex doesnt work correctly due to middle of "*"
+    match = re.search(r";(FUN_.+?)\(.+?,0x80045704,.+?\);", main_ccode.toString())
+    if not match:
+        return None
+    match = re.search(r"(FUN_.+?)\(.+?,0x80045704,.+?\)", match.group(0).split(";")[-2])
+    if not match:
+        return None
+    ioctl_func = getGlobalFunctions(match.group(1))[0]
+    return ioctl_func
+
+
+def getOpenFunc(main_ccode):
+    open_func = None
+    match = re.search(r";.+? = (FUN_.+?)\(\"/dev/watchdog\",2\);", main_ccode.toString())
+    if not match:
+        return None
+    open_func = getGlobalFunctions(match.group(1))[0]
+    return open_func
+
+
+def getSocketFunc(main_ccode):
+    socket_func = None
+    # this regex doesnt work correctly due to middle of "*"
+    # ; socket(AF_INET, SOCK_STREAM, 0)
+    match = re.search(r"(FUN_.+?)\(2,1,0\)", main_ccode.toString())
+    if not match:
+        return None
+    match = re.search(r"(FUN_.+?)\(2,1,0\)", match.group(0).split(" ")[-1])
+    if not match:
+        return None
+    socket_func = getGlobalFunctions(match.group(1))[0]
+    return socket_func
+
+
+def getRecvFunc(main_ccode):
+    recv_func = None
+    # this regex doesnt work correctly due to middle of "*"
+    # ; recv(fd_serv, rdbuf, len, MSG_NOSIGNAL | MSG_PEEK);
+    match = re.search(r"(FUN_.+?)\(.+?,.+?,.+?,0x4002\);", main_ccode.toString())
+    if not match:
+        return None
+    match = re.search(r"(FUN_.+?)\(.+?,.+?,.+?,0x4002\)", match.group(0).split(";")[-2])
+    if not match:
+        return None
+    recv_func = getGlobalFunctions(match.group(1))[0]
+    return recv_func
+
+
+def getSendFunc(main_ccode):
+    send_func = None
+    # this regex doesnt work correctly due to middle of "*"
+    # ; send(fd_serv, id_buf, id_len, MSG_NOSIGNAL);
+    match = re.search(r"(FUN_.+?)\(.+?,.+?,1,0x4000\);", main_ccode.toString())
+    if not match:
+        return None
+    match = re.search(r"(FUN_.+?)\(.+?,.+?,1,0x4000\)", match.group(0).split(";")[-2])
+    if not match:
+        return None
+    send_func = getGlobalFunctions(match.group(1))[0]
+    return send_func
 
 
 def getUByte(addr):
