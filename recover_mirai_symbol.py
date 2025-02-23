@@ -580,7 +580,6 @@ def getWriteFunc(main_ccode):
 
 def getIoctlFunc(main_ccode):
     ioctl_func = None
-    # this regex doesnt work correctly due to middle of "*"
     match = re.search(r";(FUN_.+?)\(.+?,0x80045704,.+?\);", main_ccode.toString())
     if not match:
         return None
@@ -593,7 +592,6 @@ def getIoctlFunc(main_ccode):
 
 def getFcntlFunc(main_ccode):
     fcntl_func = None
-    # this regex doesnt work correctly due to middle of "*"
     # ; fcntl(fd_serv, F_SETFL, O_NONBLOCK | fcntl(fd_serv, F_GETFL, 0));
     match = re.search(r";(FUN_.+?)\(.+?,4,.+?0x800\);", main_ccode.toString())
     if not match:
@@ -616,7 +614,6 @@ def getOpenFunc(main_ccode):
 
 def getSocketFunc(main_ccode):
     socket_func = None
-    # this regex doesnt work correctly due to middle of "*"
     # ; socket(AF_INET, SOCK_STREAM, 0)
     match = re.search(r"(FUN_.+?)\(2,1,0\)", main_ccode.toString())
     if not match:
@@ -630,7 +627,6 @@ def getSocketFunc(main_ccode):
 
 def getRecvFunc(main_ccode):
     recv_func = None
-    # this regex doesnt work correctly due to middle of "*"
     # ; recv(fd_serv, rdbuf, len, MSG_NOSIGNAL | MSG_PEEK);
     match = re.search(r"(FUN_.+?)\(.+?,.+?,.+?,0x4002\);", main_ccode.toString())
     if not match:
@@ -644,7 +640,6 @@ def getRecvFunc(main_ccode):
 
 def getSendFunc(main_ccode):
     send_func = None
-    # this regex doesnt work correctly due to middle of "*"
     # ; send(fd_serv, id_buf, id_len, MSG_NOSIGNAL);
     match = re.search(r"(FUN_.+?)\(.+?,.+?,1,0x4000\);", main_ccode.toString())
     if not match:
@@ -658,7 +653,6 @@ def getSendFunc(main_ccode):
 
 def getKillExitFunc(main_ccode):
     kill_func = exit_func = None
-    # this regex doesnt work correctly due to middle of "*"
     # ; kill(pgid * -1, 9); exit(0);
     match = re.search(r";(FUN_.+?)\(.+?,9\);(FUN_.+?)\(0\);", main_ccode.toString())
     if not match:
@@ -675,6 +669,19 @@ def getKillExitFunc(main_ccode):
     else:
         exit_func = getGlobalFunctions(match.group(1))[0]
     return kill_func, exit_func
+
+
+def getConnectFunc(main_ccode):
+    connect_func = None
+    # ; connect(fd_serv, (struct sockaddr *)&srv_addr, sizeof (struct sockaddr_in));
+    match = re.search(r";(FUN_.+?)\(.+?,.+?,0x10\);", main_ccode.toString())
+    if not match:
+        return None
+    match = re.search(r"(FUN_.+?)\(.+?,.+?,0x10\)", match.group(0).split(";")[-2])
+    if not match:
+        return None
+    connect_func = getGlobalFunctions(match.group(1))[0]
+    return connect_func
 
 
 def getUByte(addr):
@@ -725,7 +732,7 @@ if __name__ == "__main__":
     table_original_key_str = table_base_addr = tables = None
     main_func = main_ccode = None
     close_func = write_func = ioctl_func = fcntl_func = open_func = socket_func = None
-    recv_func = send_func = kill_func = exit_func = None
+    recv_func = send_func = kill_func = exit_func = connect_func = None
     resolve_cnc_addr_func = cnc = attack_init_func = attacks = None
     add_auth_entry_func, scanner_key = getScannerKey(func_mgr, ifc, monitor)
     if add_auth_entry_func and scanner_key:
@@ -751,6 +758,7 @@ if __name__ == "__main__":
         recv_func = getRecvFunc(main_ccode)
         send_func = getSendFunc(main_ccode)
         kill_func, exit_func = getKillExitFunc(main_ccode)
+        connect_func = getConnectFunc(main_ccode)
         resolve_cnc_addr_func, cnc = getResolveCncAddrFunc(listing, func_mgr, ifc, monitor, main_func, main_ccode)
         attack_init_func = getAttackInitFunc(func_mgr, ifc, monitor, main_func)
         if attack_init_func:
@@ -782,6 +790,7 @@ if __name__ == "__main__":
     setFunctionName(send_func, "send")
     setFunctionName(kill_func, "kill")
     setFunctionName(exit_func, "exit")
+    setFunctionName(connect_func, "connect")
     print("done")
     print("")
     print("")
