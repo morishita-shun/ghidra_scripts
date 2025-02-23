@@ -710,6 +710,19 @@ def getUtilZeroFunc(main_ccode):
     return util_zero_func
 
 
+def getUtilStrcpyFunc(main_ccode):
+    util_strcpy_func = None
+    # ; util_strcpy(id_buf, args[1]);
+    match = re.search(r";(FUN_.+?)\(.+?,param_2\[1\]\);", main_ccode.toString())
+    if not match:
+        return None
+    match = re.search(r"\{(FUN_.+?)\(.+?,param_2\[1\]\)", match.group(0).split(";")[-2])
+    if not match:
+        return None
+    util_strcpy_func = getGlobalFunctions(match.group(1))[0]
+    return util_strcpy_func
+
+
 def getUByte(addr):
     return getByte(addr) & 0xFF
 
@@ -759,7 +772,7 @@ if __name__ == "__main__":
     main_func = main_ccode = None
     close_func = write_func = ioctl_func = fcntl_func = open_func = socket_func = None
     recv_func = send_func = kill_func = exit_func = connect_func = prctl_func = None
-    util_zero_func = None
+    util_zero_func = util_strcpy_func = None
     resolve_cnc_addr_func = cnc = attack_init_func = attacks = None
     add_auth_entry_func, scanner_key = getScannerKey(func_mgr, ifc, monitor)
     if add_auth_entry_func and scanner_key:
@@ -788,6 +801,7 @@ if __name__ == "__main__":
         connect_func = getConnectFunc(main_ccode)
         prctl_func = getPrctlFunc(main_ccode)
         util_zero_func = getUtilZeroFunc(main_ccode)
+        util_strcpy_func = getUtilStrcpyFunc(main_ccode)
         resolve_cnc_addr_func, cnc = getResolveCncAddrFunc(listing, func_mgr, ifc, monitor, main_func, main_ccode)
         attack_init_func = getAttackInitFunc(func_mgr, ifc, monitor, main_func)
         if attack_init_func:
@@ -822,6 +836,7 @@ if __name__ == "__main__":
     setFunctionName(connect_func, "connect")
     setFunctionName(prctl_func, "prctl")
     setFunctionName(util_zero_func, "util_zero")
+    setFunctionName(util_strcpy_func, "util_strcpy")
     print("done")
     print("")
     print("")
