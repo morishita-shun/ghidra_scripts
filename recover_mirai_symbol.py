@@ -561,6 +561,7 @@ def getAttacks(func_mgr, ifc, monitor, attack_init_func):
 
 def getCloseFunc(main_ccode):
     close_func = None
+    # ; FUN_000134e0(0);FUN_000134e0(1);FUN_000134e0(2);
     match = re.search(r";(FUN_.+?)\(0\);(FUN_.+?)\(1\);(FUN_.+?)\(2\);", main_ccode.toString())
     if not match:
         return None
@@ -571,6 +572,7 @@ def getCloseFunc(main_ccode):
 def getWriteFunc(main_ccode):
     write_func = None
     # ; write(STDOUT, "\n", 1);
+    # ; FUN_00013768(1,uVar12,local_2c);FUN_00013768(1,&DAT_000189b0,1);
     match = re.search(r";(FUN_.+?)\(1,.+?,.+?\);(FUN_.+?)\(1,.+?,1\);", main_ccode.toString())
     if not match:
         return None
@@ -580,6 +582,7 @@ def getWriteFunc(main_ccode):
 
 def getIoctlFunc(main_ccode):
     ioctl_func = None
+    # ; FUN_00013548(iVar10,0x80045704,&local_30);
     match = re.search(r";(FUN_.+?)\(.+?,0x80045704,.+?\);", main_ccode.toString())
     if not match:
         return None
@@ -593,6 +596,7 @@ def getIoctlFunc(main_ccode):
 def getFcntlFunc(main_ccode):
     fcntl_func = None
     # ; fcntl(fd_serv, F_SETFL, O_NONBLOCK | fcntl(fd_serv, F_GETFL, 0));
+    # ; FUN_000133ec(piVar15,4,uVar11 | 0x800);
     match = re.search(r";(FUN_.+?)\(.+?,4,.+?0x800\);", main_ccode.toString())
     if not match:
         return None
@@ -605,6 +609,7 @@ def getFcntlFunc(main_ccode):
 
 def getOpenFunc(main_ccode):
     open_func = None
+    # ; iVar10 = FUN_000135c4("/dev/watchdog",2);
     match = re.search(r";.+? = (FUN_.+?)\(\"/dev/watchdog\",2\);", main_ccode.toString())
     if not match:
         return None
@@ -615,6 +620,7 @@ def getOpenFunc(main_ccode):
 def getSocketFunc(main_ccode):
     socket_func = None
     # ; socket(AF_INET, SOCK_STREAM, 0)
+    # ; FUN_00013e40(2,1,0)
     match = re.search(r"(FUN_.+?)\(2,1,0\)", main_ccode.toString())
     if not match:
         return None
@@ -628,6 +634,7 @@ def getSocketFunc(main_ccode):
 def getRecvFunc(main_ccode):
     recv_func = None
     # ; recv(fd_serv, rdbuf, len, MSG_NOSIGNAL | MSG_PEEK);
+    # ; FUN_00013d50(DAT_000214f8,&local_26,2,0x4002);
     match = re.search(r"(FUN_.+?)\(.+?,.+?,.+?,0x4002\);", main_ccode.toString())
     if not match:
         return None
@@ -641,6 +648,7 @@ def getRecvFunc(main_ccode):
 def getSendFunc(main_ccode):
     send_func = None
     # ; send(fd_serv, id_buf, id_len, MSG_NOSIGNAL);
+    # ; FUN_00013db0(*puVar14,&local_26,1,0x4000);
     match = re.search(r"(FUN_.+?)\(.+?,.+?,1,0x4000\);", main_ccode.toString())
     if not match:
         return None
@@ -654,6 +662,7 @@ def getSendFunc(main_ccode):
 def getKillExitFunc(main_ccode):
     kill_func = exit_func = None
     # ; kill(pgid * -1, 9); exit(0);
+    # ; FUN_00013598(-iVar10,9);FUN_00015430(0);
     match = re.search(r";(FUN_.+?)\(.+?,9\);(FUN_.+?)\(0\);", main_ccode.toString())
     if not match:
         return None, None
@@ -674,6 +683,7 @@ def getKillExitFunc(main_ccode):
 def getConnectFunc(main_ccode):
     connect_func = None
     # ; connect(fd_serv, (struct sockaddr *)&srv_addr, sizeof (struct sockaddr_in));
+    # ; FUN_00013c9c(DAT_000214f8,&DAT_00023770,0x10);
     match = re.search(r";(FUN_.+?)\(.+?,.+?,0x10\);", main_ccode.toString())
     if not match:
         return None
@@ -687,6 +697,7 @@ def getConnectFunc(main_ccode):
 def getPrctlFunc(main_ccode):
     prctl_func = None
     # ; prctl(PR_SET_NAME, name_buf);
+    # ; FUN_00013620(0xf,piVar15);
     match = re.search(r";(FUN_.+?)\(0xf,.+?\);", main_ccode.toString())
     if not match:
         return None
@@ -700,6 +711,7 @@ def getPrctlFunc(main_ccode):
 def getUtilZeroFunc(main_ccode):
     util_zero_func = None
     # ; util_zero(id_buf, 32);
+    # ; FUN_00012be8(auStack_b2,0x20);
     match = re.search(r";(FUN_.+?)\(.+?,0x20\);", main_ccode.toString())
     if not match:
         return None
@@ -713,6 +725,7 @@ def getUtilZeroFunc(main_ccode):
 def getUtilStrcpyFunc(main_ccode):
     util_strcpy_func = None
     # ; util_strcpy(id_buf, args[1]);
+    # ; FUN_00012b7c(auStack_b2,param_2[1]);
     match = re.search(r";(FUN_.+?)\(.+?,param_2\[1\]\);", main_ccode.toString())
     if not match:
         return None
