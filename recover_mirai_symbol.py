@@ -591,6 +591,20 @@ def getIoctlFunc(main_ccode):
     return ioctl_func
 
 
+def getFcntlFunc(main_ccode):
+    fcntl_func = None
+    # this regex doesnt work correctly due to middle of "*"
+    # ; fcntl(fd_serv, F_SETFL, O_NONBLOCK | fcntl(fd_serv, F_GETFL, 0));
+    match = re.search(r";(FUN_.+?)\(.+?,4,.+?0x800\);", main_ccode.toString())
+    if not match:
+        return None
+    match = re.search(r"(FUN_.+?)\(.+?,4,.+?0x800\)", match.group(0).split(";")[-2])
+    if not match:
+        return None
+    fcntl_func = getGlobalFunctions(match.group(1))[0]
+    return fcntl_func
+
+
 def getOpenFunc(main_ccode):
     open_func = None
     match = re.search(r";.+? = (FUN_.+?)\(\"/dev/watchdog\",2\);", main_ccode.toString())
@@ -710,7 +724,7 @@ if __name__ == "__main__":
     add_entry_func = table_retrieve_val_func = table_key = None
     table_original_key_str = table_base_addr = tables = None
     main_func = main_ccode = None
-    close_func = write_func = ioctl_func = open_func = socket_func = None
+    close_func = write_func = ioctl_func = fcntl_func = open_func = socket_func = None
     recv_func = send_func = kill_func = exit_func = None
     resolve_cnc_addr_func = cnc = attack_init_func = attacks = None
     add_auth_entry_func, scanner_key = getScannerKey(func_mgr, ifc, monitor)
@@ -731,6 +745,7 @@ if __name__ == "__main__":
         close_func = getCloseFunc(main_ccode)
         write_func = getWriteFunc(main_ccode)
         ioctl_func = getIoctlFunc(main_ccode)
+        fcntl_func = getFcntlFunc(main_ccode)
         open_func = getOpenFunc(main_ccode)
         socket_func = getSocketFunc(main_ccode)
         recv_func = getRecvFunc(main_ccode)
@@ -760,6 +775,7 @@ if __name__ == "__main__":
     setFunctionName(close_func, "close")
     setFunctionName(write_func, "write")
     setFunctionName(ioctl_func, "ioctl")
+    setFunctionName(fcntl_func, "fcntl")
     setFunctionName(open_func, "open")
     setFunctionName(socket_func, "socket")
     setFunctionName(recv_func, "recv")
