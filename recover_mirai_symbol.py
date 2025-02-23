@@ -684,6 +684,19 @@ def getConnectFunc(main_ccode):
     return connect_func
 
 
+def getPrctlFunc(main_ccode):
+    prctl_func = None
+    # ; prctl(PR_SET_NAME, name_buf);
+    match = re.search(r";(FUN_.+?)\(0xf,.+?\);", main_ccode.toString())
+    if not match:
+        return None
+    match = re.search(r"(FUN_.+?)\(0xf,.+?\)", match.group(0).split(";")[-2])
+    if not match:
+        return None
+    prctl_func = getGlobalFunctions(match.group(1))[0]
+    return prctl_func
+
+
 def getUByte(addr):
     return getByte(addr) & 0xFF
 
@@ -732,7 +745,7 @@ if __name__ == "__main__":
     table_original_key_str = table_base_addr = tables = None
     main_func = main_ccode = None
     close_func = write_func = ioctl_func = fcntl_func = open_func = socket_func = None
-    recv_func = send_func = kill_func = exit_func = connect_func = None
+    recv_func = send_func = kill_func = exit_func = connect_func = prctl_func = None
     resolve_cnc_addr_func = cnc = attack_init_func = attacks = None
     add_auth_entry_func, scanner_key = getScannerKey(func_mgr, ifc, monitor)
     if add_auth_entry_func and scanner_key:
@@ -759,6 +772,7 @@ if __name__ == "__main__":
         send_func = getSendFunc(main_ccode)
         kill_func, exit_func = getKillExitFunc(main_ccode)
         connect_func = getConnectFunc(main_ccode)
+        prctl_func = getPrctlFunc(main_ccode)
         resolve_cnc_addr_func, cnc = getResolveCncAddrFunc(listing, func_mgr, ifc, monitor, main_func, main_ccode)
         attack_init_func = getAttackInitFunc(func_mgr, ifc, monitor, main_func)
         if attack_init_func:
@@ -791,6 +805,7 @@ if __name__ == "__main__":
     setFunctionName(kill_func, "kill")
     setFunctionName(exit_func, "exit")
     setFunctionName(connect_func, "connect")
+    setFunctionName(prctl_func, "prctl")
     print("done")
     print("")
     print("")
