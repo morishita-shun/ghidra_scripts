@@ -6,8 +6,8 @@ from ghidra.program.model.address import AddressSet
 from ghidra.program.model.data import DefaultDataType, StringDataType
 
 listing = currentProgram.getListing()
-start_addr = toAddr(askString("Start Address", "start_addr"))
-end_addr = toAddr(askString("End Address", "end_addr"))
+start_addr = askAddress("Start Address", "start_addr")
+end_addr = askAddress("End Address", "end_addr")
 addrs = AddressSet(start_addr, end_addr).getAddresses(True)
 
 print("start_addr: " + str(start_addr))
