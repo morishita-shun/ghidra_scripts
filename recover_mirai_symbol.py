@@ -833,9 +833,10 @@ if __name__ == "__main__":
     setFunctionName(main_func, "main")
     setFunctionName(resolve_cnc_addr_func, "resolve_cnc_addr")
     setFunctionName(attack_init_func, "attack_init")
-    for attack in attacks:
-        attack_func = getFunctionAt(toAddr(attack[KEY_ENTRYPOINT]))
-        setFunctionName(attack_func, "attack_vector" + str(attack[KEY_VECTOR]))
+    if attacks:
+        for attack in attacks:
+            attack_func = getFunctionAt(toAddr(attack[KEY_ENTRYPOINT]))
+            setFunctionName(attack_func, "attack_vector" + str(attack[KEY_VECTOR]))
     setFunctionName(close_func, "close")
     setFunctionName(write_func, "write")
     setFunctionName(ioctl_func, "ioctl")
