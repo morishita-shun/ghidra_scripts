@@ -565,7 +565,7 @@ def getCloseFunc(main_ccode):
     match = re.search(r";(FUN_.+?)\(0\);(FUN_.+?)\(1\);(FUN_.+?)\(2\);", main_ccode.toString())
     if not match:
         return None
-    close_func = getGlobalFunctions(match.group(2))[0]
+    close_func = getFunctionFromName(match.group(2))
     return close_func
 
 
@@ -576,7 +576,7 @@ def getWriteFunc(main_ccode):
     match = re.search(r";(FUN_.+?)\(1,.+?,.+?\);(FUN_.+?)\(1,.+?,1\);", main_ccode.toString())
     if not match:
         return None
-    write_func = getGlobalFunctions(match.group(2))[0]
+    write_func = getFunctionFromName(match.group(2))
     return write_func
 
 
@@ -589,7 +589,7 @@ def getIoctlFunc(main_ccode):
     match = re.search(r"(FUN_.+?)\(.+?,0x80045704,.+?\)", match.group(0).split(";")[-2])
     if not match:
         return None
-    ioctl_func = getGlobalFunctions(match.group(1))[0]
+    ioctl_func = getFunctionFromName(match.group(1))
     return ioctl_func
 
 
@@ -603,7 +603,7 @@ def getFcntlFunc(main_ccode):
     match = re.search(r"(FUN_.+?)\(.+?,4,.+?0x800\)", match.group(0).split(";")[-2])
     if not match:
         return None
-    fcntl_func = getGlobalFunctions(match.group(1))[0]
+    fcntl_func = getFunctionFromName(match.group(1))
     return fcntl_func
 
 
@@ -613,7 +613,7 @@ def getOpenFunc(main_ccode):
     match = re.search(r";.+? = (FUN_.+?)\(\"/dev/watchdog\",2\);", main_ccode.toString())
     if not match:
         return None
-    open_func = getGlobalFunctions(match.group(1))[0]
+    open_func = getFunctionFromName(match.group(1))
     return open_func
 
 
@@ -627,7 +627,7 @@ def getSocketFunc(main_ccode):
     match = re.search(r"(FUN_.+?)\(2,1,0\)", match.group(0).split(" ")[-1])
     if not match:
         return None
-    socket_func = getGlobalFunctions(match.group(1))[0]
+    socket_func = getFunctionFromName(match.group(1))
     return socket_func
 
 
@@ -641,7 +641,7 @@ def getRecvFunc(main_ccode):
     match = re.search(r"(FUN_.+?)\(.+?,.+?,.+?,0x4002\)", match.group(0).split(";")[-2])
     if not match:
         return None
-    recv_func = getGlobalFunctions(match.group(1))[0]
+    recv_func = getFunctionFromName(match.group(1))
     return recv_func
 
 
@@ -655,7 +655,7 @@ def getSendFunc(main_ccode):
     match = re.search(r"(FUN_.+?)\(.+?,.+?,1,0x4000\)", match.group(0).split(";")[-2])
     if not match:
         return None
-    send_func = getGlobalFunctions(match.group(1))[0]
+    send_func = getFunctionFromName(match.group(1))
     return send_func
 
 
@@ -671,12 +671,12 @@ def getKillExitFunc(main_ccode):
     if not match:
         kill_func = None
     else:
-        kill_func = getGlobalFunctions(match.group(1))[0]
+        kill_func = getFunctionFromName(match.group(1))
     match = re.search(r"(FUN_.+?)\(0\)", lines[-2])
     if not match:
         exit_func = None
     else:
-        exit_func = getGlobalFunctions(match.group(1))[0]
+        exit_func = getFunctionFromName(match.group(1))
     return kill_func, exit_func
 
 
@@ -690,7 +690,7 @@ def getConnectFunc(main_ccode):
     match = re.search(r"(FUN_.+?)\(.+?,.+?,0x10\)", match.group(0).split(";")[-2])
     if not match:
         return None
-    connect_func = getGlobalFunctions(match.group(1))[0]
+    connect_func = getFunctionFromName(match.group(1))
     return connect_func
 
 
@@ -704,7 +704,7 @@ def getPrctlFunc(main_ccode):
     match = re.search(r"(FUN_.+?)\(0xf,.+?\)", match.group(0).split(";")[-2])
     if not match:
         return None
-    prctl_func = getGlobalFunctions(match.group(1))[0]
+    prctl_func = getFunctionFromName(match.group(1))
     return prctl_func
 
 
@@ -718,7 +718,7 @@ def getUtilZeroFunc(main_ccode):
     match = re.search(r"(FUN_.+?)\(.+?,0x20\)", match.group(0).split(";")[-2])
     if not match:
         return None
-    util_zero_func = getGlobalFunctions(match.group(1))[0]
+    util_zero_func = getFunctionFromName(match.group(1))
     return util_zero_func
 
 
@@ -732,7 +732,7 @@ def getUtilStrcpyFunc(main_ccode):
     match = re.search(r"\{(FUN_.+?)\(.+?,param_2\[1\]\)", match.group(0).split(";")[-2])
     if not match:
         return None
-    util_strcpy_func = getGlobalFunctions(match.group(1))[0]
+    util_strcpy_func = getFunctionFromName(match.group(1))
     return util_strcpy_func
 
 
@@ -752,6 +752,14 @@ def getDecompileCCode(func, ifc, monitor):
 
 def parseVarnode(varnode):
     return varnode.toString().strip("()").split(", ")
+
+
+def getFunctionFromName(name):
+    func = None
+    funcs = getGlobalFunctions(name)
+    if len(funcs) != 0:
+        func = funcs[0]
+    return func
 
 
 def setFunctionName(func, name):
