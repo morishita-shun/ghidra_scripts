@@ -461,7 +461,7 @@ def getCnc(listing, ifc, monitor, resolve_cnc_addr_func):
 
 
 def getAttackInitFunc(func_mgr, ifc, monitor, main_func):
-    attack_init_func = None
+    attack_init_func = attack_init_ccode = None
     language_id = currentProgram.getLanguageID().toString()
     funcs = func_mgr.getFunctions(True)
     for func in funcs:
@@ -503,8 +503,9 @@ def getAttackInitFunc(func_mgr, ifc, monitor, main_func):
         # attack_init() has more than 5 lines
         if len(lines) >= 5:
             attack_init_func = func
+            attack_init_ccode = ccode
             break
-    return attack_init_func
+    return attack_init_func, attack_init_ccode
 
 
 def getAttacks(func_mgr, ifc, monitor, attack_init_func):
@@ -557,6 +558,20 @@ def getAttacks(func_mgr, ifc, monitor, attack_init_func):
                 attacks.append(attack)
                 vector = func_name = None
     return attacks
+
+
+def getCallocFunc(attack_init_ccode):
+    calloc_func = None
+    # ; calloc(1, sizeof (struct attack_method));
+    # ; FUN_08054a2c(1,8);
+    match = re.search(r"(FUN_.+?)\(1,8\);", attack_init_ccode.toString())
+    if not match:
+        return None
+    match = re.search(r"(FUN_.+?)\(1,8\)", match.group(0).split(";")[-2])
+    if not match:
+        return None
+    calloc_func = getFunctionFromName(match.group(1))
+    return calloc_func
 
 
 def getCloseFunc(main_ccode):
@@ -808,7 +823,9 @@ if __name__ == "__main__":
     close_func = write_func = ioctl_func = fcntl_func = open_func = socket_func = None
     recv_func = send_func = kill_func = exit_func = connect_func = prctl_func = None
     singal_func = util_zero_func = util_strcpy_func = None
-    resolve_cnc_addr_func = cnc = attack_init_func = attacks = None
+    resolve_cnc_addr_func = cnc = None
+    attack_init_func = attack_init_ccode = attacks = None
+    calloc_func = None
     add_auth_entry_func, scanner_key = getScannerKey(func_mgr, ifc, monitor)
     if add_auth_entry_func and scanner_key:
         scanner_init_func = getModeCallerFunc(add_auth_entry_func)
@@ -839,9 +856,10 @@ if __name__ == "__main__":
         util_zero_func = getUtilZeroFunc(main_ccode)
         util_strcpy_func = getUtilStrcpyFunc(main_ccode)
         resolve_cnc_addr_func, cnc = getResolveCncAddrFunc(listing, func_mgr, ifc, monitor, main_func, main_ccode)
-        attack_init_func = getAttackInitFunc(func_mgr, ifc, monitor, main_func)
-        if attack_init_func:
+        attack_init_func, attack_init_ccode = getAttackInitFunc(func_mgr, ifc, monitor, main_func)
+        if attack_init_func and attack_init_ccode:
             attacks = getAttacks(func_mgr, ifc, monitor, attack_init_func)
+            calloc_func = getCallocFunc(attack_init_ccode)
     # recover function name
     print("")
     print("")
@@ -860,6 +878,7 @@ if __name__ == "__main__":
         for attack in attacks:
             attack_func = getFunctionAt(toAddr(attack[KEY_ENTRYPOINT]))
             setFunctionName(attack_func, "attack_vector" + str(attack[KEY_VECTOR]))
+    setFunctionName(calloc_func, "calloc")
     setFunctionName(close_func, "close")
     setFunctionName(write_func, "write")
     setFunctionName(ioctl_func, "ioctl")
