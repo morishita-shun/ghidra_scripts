@@ -574,6 +574,21 @@ def getCallocFunc(attack_init_ccode):
     return calloc_func
 
 
+def getReallocFunc(attack_init_ccode):
+    realloc_func = None
+    # ; realloc(methods, (methods_len + 1) * sizeof (struct attack_method *));
+    # ; FUN_000149a0(uVar1,(uVar5 + 1) * 4);
+    # ; FUN_08054b24(DAT_08059700,(uint)DAT_080596fc * 4 + 4);
+    match = re.search(r"(FUN_.+?)\(.+?,.+? \* 4.*?\);", attack_init_ccode.toString())
+    if not match:
+        return None
+    match = re.search(r"(FUN_.+?)\(.+?,.+? \* 4.*?\)", match.group(0).split(";")[-2])
+    if not match:
+        return None
+    realloc_func = getFunctionFromName(match.group(1))
+    return realloc_func
+
+
 def getCloseFunc(main_ccode):
     close_func = None
     # ; FUN_000134e0(0);FUN_000134e0(1);FUN_000134e0(2);
@@ -825,7 +840,7 @@ if __name__ == "__main__":
     singal_func = util_zero_func = util_strcpy_func = None
     resolve_cnc_addr_func = cnc = None
     attack_init_func = attack_init_ccode = attacks = None
-    calloc_func = None
+    calloc_func = realloc_func = None
     add_auth_entry_func, scanner_key = getScannerKey(func_mgr, ifc, monitor)
     if add_auth_entry_func and scanner_key:
         scanner_init_func = getModeCallerFunc(add_auth_entry_func)
@@ -860,6 +875,7 @@ if __name__ == "__main__":
         if attack_init_func and attack_init_ccode:
             attacks = getAttacks(func_mgr, ifc, monitor, attack_init_func)
             calloc_func = getCallocFunc(attack_init_ccode)
+            realloc_func = getReallocFunc(attack_init_ccode)
     # recover function name
     print("")
     print("")
@@ -879,6 +895,7 @@ if __name__ == "__main__":
             attack_func = getFunctionAt(toAddr(attack[KEY_ENTRYPOINT]))
             setFunctionName(attack_func, "attack_vector" + str(attack[KEY_VECTOR]))
     setFunctionName(calloc_func, "calloc")
+    setFunctionName(realloc_func, "realloc")
     setFunctionName(close_func, "close")
     setFunctionName(write_func, "write")
     setFunctionName(ioctl_func, "ioctl")
