@@ -837,7 +837,7 @@ if __name__ == "__main__":
     main_func = main_ccode = None
     close_func = write_func = ioctl_func = fcntl_func = open_func = socket_func = None
     recv_func = send_func = kill_func = exit_func = connect_func = prctl_func = None
-    singal_func = util_zero_func = util_strcpy_func = None
+    signal_func = util_zero_func = util_strcpy_func = None
     resolve_cnc_addr_func = cnc = None
     attack_init_func = attack_init_ccode = attacks = None
     calloc_func = realloc_func = None
