@@ -12,4 +12,4 @@ for addr in addrs:
         continue
     dec_string += chr(byte ^ xor_key)
 
-dec_string
+print(dec_string)
