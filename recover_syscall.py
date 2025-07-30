@@ -15,7 +15,8 @@ ARCH_ARM_LE = "ARM:LE:32:v8"
 ARCH_MIPS_BE = "MIPS:BE:32:default"
 ARCH_MIPS_LE = "MIPS:LE:32:default"
 ARCH_X86 = "x86:LE:32:default"
-LANGS = [ARCH_ARM_LE, ARCH_MIPS_BE, ARCH_MIPS_LE, ARCH_X86]
+ARCH_X86_64 = "x86:LE:64:default"
+LANGS = [ARCH_ARM_LE, ARCH_MIPS_BE, ARCH_MIPS_LE, ARCH_X86, ARCH_X86_64]
 LANGUAGE_ID = currentProgram.getLanguageID().toString()
 SYSCALLS = system_calls.syscalls()
 
@@ -188,6 +189,52 @@ def recoverX86SyscallFunc(listing, func):
     return None
 
 
+def recoverX8664SyscallFunc(listing, func):
+    # reverse order
+    instructs = listing.getInstructions(func.getBody(), False)
+    syscall_names = []
+    while instructs.hasNext():
+        # ; MOV EAX, 0x57 ; SYSCALL
+        instruct = instructs.next()
+        if not instruct:
+            continue
+        if instruct.getNumOperands() != 0:
+            continue
+        mnemonic = instruct.getMnemonicString()
+        if mnemonic != "SYSCALL":
+            continue
+        if not instructs.hasNext():
+            break
+        # get next instruction
+        instruct = instructs.next()
+        if instruct.getNumOperands() != 2:
+            continue
+        first_operand = instruct.getDefaultOperandRepresentation(0)
+        if first_operand != "EAX":
+            continue
+        second_operand = instruct.getDefaultOperandRepresentation(1)
+        try:
+            syscall_number = int(second_operand, 0)
+        except:
+            continue
+        if not syscall_number:
+            continue
+        syscall_name = getSyscallName(syscall_number)
+        if not syscall_name:
+            continue
+        syscall_names.append(syscall_name)
+        # add comment
+        if not getPostComment(instruct.getAddress()):
+            setPostComment(instruct.getAddress(), str(syscall_number) + ": " + syscall_name)
+    if syscall_names:
+        syscall_names = list(set(syscall_names))
+        new_func_name = "_".join(syscall_names)
+        new_func_name += "_" + func.getEntryPoint().toString()
+        #print(func.getName() + " -> " + new_func_name)
+        setFunctionName(func, new_func_name)
+    return None
+
+
 def getSyscallName(syscall_number):
     # ref. https://github.com/hrw/syscalls-table/blob/master/bin/syscall#L36
     if LANGUAGE_ID == ARCH_ARM_LE:
@@ -196,6 +243,8 @@ def getSyscallName(syscall_number):
         syscall_arch = "mipso32"
     elif LANGUAGE_ID == ARCH_X86:
         syscall_arch = "i386"
+    elif LANGUAGE_ID == ARCH_X86_64:
+        syscall_arch = "x86_64"
     for syscall_name in SYSCALLS.names():
         try:
             if syscall_number == SYSCALLS.get(syscall_name, syscall_arch):
@@ -245,3 +294,5 @@ if __name__ == "__main__":
             recoverMipsSyscallFunc(listing, func)
         elif LANGUAGE_ID == ARCH_X86:
             recoverX86SyscallFunc(listing, func)
+        elif LANGUAGE_ID == ARCH_X86_64:
+            recoverX8664SyscallFunc(listing, func)
