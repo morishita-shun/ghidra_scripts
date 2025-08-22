@@ -1,6 +1,8 @@
 # Recover syscall function.
 # @author Shun Morishita
 # @category Symbol
+# @menupath Tools.Recover syscall function
+# @toolbar
 # @runtime PyGhidra
 
 import system_calls

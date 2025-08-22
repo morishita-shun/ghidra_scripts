@@ -1,6 +1,8 @@
 # Recover Mirai symbols.
 # @author Shun Morishita
 # @category Symbol
+# @menupath Tools.Recover Mirai symbols
+# @toolbar
 
 import collections
 import re
